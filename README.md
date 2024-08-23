@@ -2,7 +2,7 @@
 
 Open your terminal and enter,
 
-pip install -r requirement.txt
+`pip install -r requirement.txt`
 
 Then run the **server**
 
