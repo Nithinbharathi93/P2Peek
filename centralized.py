@@ -26,7 +26,12 @@ class GUI:
                             font="Helvetica 12 bold")
 
         self.pls.place(relheight=0.15, relx=0.2, rely=0.07)
-
+        self.chkbtn_state = tk.BooleanVar()
+        self.desig = tk.Checkbutton(self.login, text="Server", font="Heletica 9", 
+                                    justify=tk.RIGHT, variable=self.chkbtn_state,
+                                    onvalue=True, offvalue=False, command=self.des)
+        self.desig.place(relheight=0.08, relx=0.80, rely=0.14)
+        
         self.userLabelName = tk.Label(self.login, text="Username: ", font="Helvetica 11")
         self.userLabelName.place(relheight=0.2, relx=0.1, rely=0.25)
 
@@ -54,7 +59,13 @@ class GUI:
         self.go.place(relx=0.35, rely=0.70)
 
         self.Window.mainloop()
-
+        
+    def des(self):
+        print("Designation changed..!")
+        if self.chkbtn_state == False:
+            self.serveripEntry.configure(state="disabled")
+        else:
+            self.serveripEntry.configure(state="normal")
 
     def goAhead(self, username, servip, port, room_id=0):
         enc2, rest2 = servip[::2], servip[1::2]
