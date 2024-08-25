@@ -62,6 +62,7 @@ class ChatMessage(Row):
 def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
     page.title = "P2Peek"
+    page.theme_mode = ft.ThemeMode.LIGHT
 
     def join_chat_click(e: ControlEvent):
         global server
@@ -77,6 +78,19 @@ def main(page: ft.Page):
                 join_pass_code.update()
             
         else:
+            # if join_chk.value:
+            #     server.connect(("8.8.8.8", 80))
+            #     ip_address = (server.getsockname()[0])
+            #     server.close()
+            #     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            #     l = [(255-int(i))/10 for i in ip_address.split('.')]
+            #     d = {i+1:j for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
+            #     enc = "".join([d[int(i)] for i in l])
+            #     rest = "".join([d[int(str(i)[-1])] for i in l])
+            #     code = "".join([i+j for i, j in zip(enc,rest)])
+            #     print(code)
+            #     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # else:
             servip = join_pass_code.value
             enc2, rest2 = servip[::2], servip[1::2]
             d2 = {j:i+1 for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
@@ -107,25 +121,34 @@ def main(page: ft.Page):
         global fin_msg, server
         while True:
             try:
-                message_recv: Message = server.recv(1024).decode()
-                print("Recieving :", message_recv.text)
-                if not message_recv.text:
-                    print("Error occured..No msg recieved")
-                    break
+                message_recv = str(server.recv(1024).decode())
                 
-                show_message = Message(
-                user_name=message_recv.user_name,
-                text=f"{message_recv.text}",
-                message_type="login_message",
-                )
-                ChatMessage(show_message)
-                page.update()             
+                print("Recieving ..!", message_recv)
+                if not message_recv.startswith("<"):
+                    if not message_recv:
+                        break
+                    Message(
+                    user_name=join_user_name.value,
+                    text=f"{message_recv}",
+                    message_type="login_message",
+                    )
+                    # print(f"Just Recieved {message_recv}")
+                else:
+                    message_proc = message_recv[1:].partition("> ")
+                    print(f"Recived '{message_proc[-1]}' from {message_proc[0]}")
+                    message_conv = Message(user_name=message_proc[0], 
+                                        text=message_proc[2],
+                                        message_type="chat_message")
+                    print("Sending the message:",message_conv.user_name, "From", 
+                          message_conv.text)
+                    on_message(message_conv)   
 
             except: 
                 print("An error occured!") 
                 print(Exception)
                 server.close() 
                 break
+        page.update()
 
 
     def send_message_click(e):
@@ -140,7 +163,7 @@ def main(page: ft.Page):
             )
             print("Sending :",new_message)
             while True:
-                server.send((fin_msg).encode())
+                server.send((new_message.value).encode())
                 break
             
             new_message.value = ""

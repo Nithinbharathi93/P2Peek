@@ -43,25 +43,19 @@ class Server:
             connection.send("Welcome to chat room".encode())
 
         self.rooms[room_id].append(connection)
-        print(f"connection {connection} added to the room", room_id)
+        print("connection added to the room")
 
         while True:
             try:
                 message = connection.recv(1024)
-                print((message.decode()))
-                with open("newfile.txt", 'a') as f:
-                    f.write(message.decode())
                 if message:
+                    print("The message :",str(message.decode()))
                     if str(message.decode()) == "FILE":
                         self.broadcastFile(connection, room_id, user_id)
 
                     else:
-                        if not message.decode():
-                            message_to_send: Message = message.decode()
-                            self.broadcast(message_to_send, connection, room_id)
-                        else:
-                            print("The Message recieved is empty is empty..!")
-                            break
+                        message_to_send = "<" + str(user_id) + "> " + message.decode()
+                        self.broadcast(message_to_send, connection, room_id)
 
                 else:
                     self.remove(connection, room_id)
