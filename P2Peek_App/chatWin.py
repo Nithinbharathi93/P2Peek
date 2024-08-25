@@ -102,8 +102,8 @@ def main(page: ft.Page):
             server.send(str.encode(username))
             time.sleep(0.1)
             server.send(str.encode(room_id))
-            # rcv = threading.Thread(target=receive)
-            # rcv.start()
+            rcv = threading.Thread(target=receive)
+            rcv.start()
             page.session.set("user_name", join_user_name.value)
             page.dialog.open = False
             new_message.prefix = Text(f"{join_user_name.value}: ")
@@ -124,18 +124,24 @@ def main(page: ft.Page):
                 
                 print("Recieving :", message_recv)
                 
-                message_proc = message_recv[1:].split("> ")
+                if not message_recv.startswith("<"):
+                    Message(
+                    user_name=join_user_name.value,
+                    text=f"{message_recv}",
+                    message_type="login_message",
+                    )
                 
-                message_conv = Message(message_proc[0], 
-                                       message_proc[1],
-                                       "chat_message")
-                
-                
-                m = ChatMessage(message_conv)
-                
+                else:
+                    message_proc = message_recv[1:].split("> ")
+                    message_conv = Message(message_proc[0], 
+                                        message_proc[1],
+                                        "chat_message")
+                    ChatMessage(message_conv)   
+                    page.update()             
 
             except: 
                 print("An error occured!") 
+                print(Exception)
                 server.close() 
                 break
 
