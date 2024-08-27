@@ -123,7 +123,7 @@ if __name__ == "__main__":
     ip_address = (s.getsockname()[0])
     print(ip_address)
     l = [(255-int(i))/10 for i in ip_address.split('.')]
-    d = {i+1:j for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
+    d = {i:j for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
     enc = "".join([d[int(i)] for i in l])
     rest = "".join([d[int(str(i)[-1])] for i in l])
     code = "".join([i+j for i, j in zip(enc,rest)])
