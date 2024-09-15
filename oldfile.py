@@ -4,6 +4,7 @@ from flet_core.control_event import ControlEvent
 import socket
 import time
 import threading
+import os
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -92,7 +93,7 @@ def main(page: ft.Page):
             # else:
             servip = join_pass_code.value
             enc2, rest2 = servip[::2], servip[1::2]
-            d2 = {j:i for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
+            d2 = {j:i+1 for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
             enc2_l = [d2[i] for i in enc2]
             rest2_l = [d2[i] for i in rest2]
             ip_l = ([(f"{i}{j}") for i, j in zip(enc2_l, rest2_l)])
