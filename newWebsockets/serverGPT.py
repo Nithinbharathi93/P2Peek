@@ -1,12 +1,12 @@
-
-
 import asyncio
 import websockets
 from pyngrok import ngrok
+import websockets.client
+import websockets.connection
 
 # Function to handle incoming messages from clients
 async def handle_client(websocket, path):
-    print(f"Client connected from {path}")
+    print(f"Client connected from, \nwebsocket: {websocket} and \npath: {path}")
     try:
         async for message in websocket:
             print(f"Message received: {message}")
@@ -19,7 +19,6 @@ async def start_server():
     port = 8765  # Define the port number
     server = await websockets.serve(handle_client, "0.0.0.0", port)
     print(f"WebSocket server started on ws://localhost:{port}")
-
     token = "2ly0aXUlC9KdEJovwEKz5In1HNz_42Q35noMSzAUHAdm7FUyb"
     ngrok.set_auth_token(token)
     
