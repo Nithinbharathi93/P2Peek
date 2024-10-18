@@ -10,6 +10,7 @@ class Message:
         self.text = text
         self.message_type = message_type
 
+
 class ChatMessage(Row):
     def __init__(self, message: Message):
         super().__init__()
@@ -31,17 +32,28 @@ class ChatMessage(Row):
         ]
 
     def get_initials(self, user_name: str):
-        return user_name[:1].capitalize() if user_name else "Unknown"
+        if user_name:
+            return user_name[:1].capitalize()
+        else:
+            return "Unknown"  # or any default value you prefer
 
     def get_avatar_color(self, user_name: str):
         colors_lookup = [
-            ft.colors.AMBER, ft.colors.BLUE, ft.colors.BROWN, ft.colors.CYAN,
-            ft.colors.GREEN, ft.colors.INDIGO, ft.colors.LIME, ft.colors.ORANGE,
-            ft.colors.PINK, ft.colors.PURPLE, ft.colors.RED, ft.colors.TEAL,
+            ft.colors.AMBER,
+            ft.colors.BLUE,
+            ft.colors.BROWN,
+            ft.colors.CYAN,
+            ft.colors.GREEN,
+            ft.colors.INDIGO,
+            ft.colors.LIME,
+            ft.colors.ORANGE,
+            ft.colors.PINK,
+            ft.colors.PURPLE,
+            ft.colors.RED,
+            ft.colors.TEAL,
             ft.colors.YELLOW,
         ]
         return colors_lookup[hash(user_name) % len(colors_lookup)]
-
 
 async def websocket_client(page: ft.Page, uri, user_name, room_id, chat):
     try:
@@ -84,7 +96,7 @@ async def send_message(websocket, message_text, user_name, page, chat):
     try:
         message_to_send = f"<{user_name}> {message_text}"
         await websocket.send(message_to_send)
-        page.pubsub.send_all(Message(user_name=user_name, text=message_text, message_type="chat_message"))
+        on_message(page, Message(user_name=user_name, text=message_text, message_type="chat_message"), chat)
     except Exception as e:
         print(f"Error sending message: {e}")
 
@@ -114,11 +126,8 @@ def main(page: ft.Page):
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
                 websocket = new_loop.run_until_complete(websocket_client(page, server_url, username, room_id, chat))
-                
-                # Store the websocket in a thread-safe way
                 with websocket_lock:
                     websocket_container["websocket"] = websocket
-                
                 new_loop.run_forever()
 
             websocket_thread = threading.Thread(target=start_websocket)
@@ -141,8 +150,8 @@ def main(page: ft.Page):
         if websocket and message_text:
             await send_message(websocket, message_text, username, page, chat)
             new_message.value = ""
+            page.update()  # Update the UI
             new_message.focus()
-            page.update()
 
     new_message = TextField(hint_text="Write a message...", autofocus=True, shift_enter=True, min_lines=1, max_lines=5, filled=True, expand=True, on_submit=send_message_click)
 
