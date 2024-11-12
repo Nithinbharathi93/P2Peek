@@ -1,30 +1,12 @@
-# P2Peek
-
-Open your terminal and enter,
-
-`pip install -r requirement.txt`
-
-Then start the **server**
-
-`python3 server.py`
-
-Start a new **client**
-
-`flet run main.py`
-
-Once the client has started, enter the _Username_, _Room Id_ and the _Pass Code_
-Then `Continue`
-
-
-#P2Peek
+## **P2Peek**
 Peer-to-Peer (P2P) Communication Software  
 
-#Introduction
+## **Introduction**
 P2Peek is a peer-to-peer communication software designed for secure, reliable, and efficient communication between devices. Developed using Python and TCP networking principles, P2Peek eliminates the need for centralized servers by establishing direct communication channels between peers. The software supports real-time chat, making it ideal for personal communication, collaborative work, and educational purposes.  
 
 ---
 
-#Features
+## **Features**
 - **Peer-to-Peer Architecture:** Direct device-to-device communication without intermediaries.  
 - **Real-Time Chat:** Instant messaging with minimal latency.  
 - **Cross-Platform:** Compatible with Windows, macOS, and Linux.  
