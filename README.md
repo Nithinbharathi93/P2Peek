@@ -62,9 +62,9 @@ Before running P2Peek, ensure you have the following installed:
 ```plaintext  
 P2Peek/  
 ├── server.py              # Script to initialize the host  
-├── main.py            # Script for client connection  
-├── requirements.txt     # List of dependencies  
-└── README.md            # Documentation file  
+├── main.py                # Script for client connection  
+├── requirements.txt       # List of dependencies  
+└── README.md              # Documentation file  
 ```  
 
 
