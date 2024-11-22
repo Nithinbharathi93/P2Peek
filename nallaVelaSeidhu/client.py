@@ -1,7 +1,7 @@
 # client.py
 import asyncio
 import websockets
-
+print(asyncio._v)
 async def listen_to_server(websocket):
     while True:
         try:
