@@ -20,8 +20,9 @@ async def handle_client(websocket, path):
     connected_clients.add(websocket)
     print("A new client connected.")
     try:
-        async for message in websocket:
-            print(f"Received: {message}")
+        async for (message) in websocket:
+            message = message.partition(":")
+            print(f"{message[0]}: {message[2]}")
             await broadcast(message, websocket)
     except websockets.ConnectionClosed:
         print("A client disconnected.")

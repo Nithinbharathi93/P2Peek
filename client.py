@@ -2,11 +2,14 @@
 import asyncio
 import websockets
 
+unm = input("Enter Username: ")
+
 async def listen_to_server(websocket):
     while True:
         try:
             message = await websocket.recv()
-            print(f"\n[Server]: {message}")
+            message = message.partition(":")
+            print(f"\n>> {message[0]}: {message[2]}")
         except websockets.ConnectionClosed:
             print("Disconnected from the server.")
             break
@@ -15,10 +18,10 @@ async def send_to_server(websocket):
     while True:
         try:
             # Use asyncio to handle input asynchronously
-            message = await asyncio.get_event_loop().run_in_executor(None, input, "You: ")
+            message = await asyncio.get_event_loop().run_in_executor(None, input, ">> ")
             if message.lower() == 'quit':
                 break
-            await websocket.send(message)
+            await websocket.send(f"{unm}:{message}")
         except websockets.ConnectionClosed:
             break
 
