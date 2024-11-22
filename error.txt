@@ -1,2 +1,0 @@
-WebSocket server started on ws://localhost:8765
-ngrok tunnel opened: wss://b973-2409-40f4-2009-f425-c36f-696d-a5dc-afe8.ngrok-free.app
