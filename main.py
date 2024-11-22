@@ -77,19 +77,6 @@ def main(page: ft.Page):
                 join_pass_code.update()
             
         else:
-            # if join_chk.value:
-            #     server.connect(("8.8.8.8", 80))
-            #     ip_address = (server.getsockname()[0])
-            #     server.close()
-            #     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #     l = [(255-int(i))/10 for i in ip_address.split('.')]
-            #     d = {i+1:j for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
-            #     enc = "".join([d[int(i)] for i in l])
-            #     rest = "".join([d[int(str(i)[-1])] for i in l])
-            #     code = "".join([i+j for i, j in zip(enc,rest)])
-            #     print(code)
-            #     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            # else:
             servip = join_pass_code.value
             enc2, rest2 = servip[::2], servip[1::2]
             d2 = {j:i for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}

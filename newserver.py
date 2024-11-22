@@ -34,9 +34,3 @@ async def main():
     async with (start_server:=websockets.serve(handle_client, "localhost", 6789)):
         await asyncio.Future()
 asyncio.run(main())
-
-##while True:
-##    print("This will block the event loop!")
-##    time.sleep(1)
-##asyncio.get_running_loop().run_until_complete(start_server)
-##asyncio.get_running_loop().run_forever()
