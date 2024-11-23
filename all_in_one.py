@@ -228,4 +228,6 @@ def main(page: ft.Page):
         ft.Row([new_message, ft.IconButton(icon=ft.icons.SEND, on_click=send_message_click)]),
     )
 
-ft.app(target=main)
+ft.app(target=main, assets_dir="assets")
+
+#ws://localhost:6789
