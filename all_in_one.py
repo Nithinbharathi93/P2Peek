@@ -4,6 +4,7 @@ import websockets
 import pyperclip
 import flet as ft
 from flet_core.control_event import ControlEvent
+from pyngrok import ngrok
 
 # Server code
 connected_clients = set()
@@ -31,15 +32,21 @@ async def handle_client(websocket, path):
     finally:
         connected_clients.remove(websocket)
 
-def start_server():
+def start_server_with_ngrok(port=6789):
     async def main():
-        print("Server running on ws://localhost:6789")
-        async with websockets.serve(handle_client, "localhost", 6789):
+        print(f"Server running on ws://localhost:{port}")
+        async with websockets.serve(handle_client, "localhost", port):
             await asyncio.Future()  # Run forever
 
-    print("Server starting on ws://localhost:6789")
-    asyncio.run(main())
+    # Start the ngrok tunnel
+    token = "2pEGLpToPOxign7V3HrJ3XMgEqu_42cUWxgMavHEGBCpkD26D"  # Replace with your ngrok auth token
+    ngrok.set_auth_token(token)
+    tunnel = ngrok.connect(port, "tcp")
+    public_url = tunnel.public_url.replace("tcp", "ws")
+    print(f"ngrok public WebSocket URL: {public_url}")
 
+    threading.Thread(target=asyncio.run, args=(main(),), daemon=True).start()
+    return public_url
 
 class Message:
     def __init__(self, user_name: str, text: str, message_type: str):
@@ -163,10 +170,10 @@ def main(page: ft.Page):
 
     def on_server_checkbox_change(e: ControlEvent):
         if join_server.value:
-            generated_link = "ws://localhost:6789"
-            join_pass_code.value = generated_link
-            pyperclip.copy(generated_link)  
-            page.snack_bar = ft.SnackBar(ft.Text("Link copied to clipboard!"))
+            public_url = start_server_with_ngrok()  # Start the server with ngrok
+            join_pass_code.value = public_url  # Update the pass code field with the ngrok URL
+            pyperclip.copy(public_url)  # Copy the public URL to clipboard
+            page.snack_bar = ft.SnackBar(ft.Text("ngrok link copied to clipboard!"))
             page.snack_bar.open = True
             page.update()
 
@@ -177,10 +184,6 @@ def main(page: ft.Page):
             room_id = join_room_id.value
             ws_link = join_pass_code.value
 
-            if join_server.value:
-                # Start the server in a separate thread
-                threading.Thread(target=start_server, daemon=True).start()
-
             # Close the dialog and update the page
             page.dialog.open = False
             page.update()  # Ensure UI updates first
@@ -190,8 +193,6 @@ def main(page: ft.Page):
                 asyncio.run(chat_client(page))  # Runs the coroutine safely
 
             threading.Thread(target=start_chat_client, daemon=True).start()
-
-
 
     def send_message_click(e):
         message = new_message.value
@@ -217,17 +218,20 @@ def main(page: ft.Page):
 
     global chat
     chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
-    new_message = ft.TextField(hint_text="Write a message...",autofocus=True,
+    new_message = ft.TextField(
+        hint_text="Write a message...",
+        autofocus=True,
         shift_enter=True,
         min_lines=1,
         max_lines=5,
-        filled=True, expand=True, on_submit=send_message_click)
+        filled=True,
+        expand=True,
+        on_submit=send_message_click,
+    )
     page.add(
         ft.Container(content=chat, expand=True, border_radius=5,
-            padding=10, border=ft.border.all(1, ft.colors.OUTLINE)),
+                     padding=10, border=ft.border.all(1, ft.colors.OUTLINE)),
         ft.Row([new_message, ft.IconButton(icon=ft.icons.SEND, on_click=send_message_click)]),
     )
 
 ft.app(target=main, assets_dir="assets")
-
-#ws://localhost:6789
