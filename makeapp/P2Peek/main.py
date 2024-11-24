@@ -93,9 +93,21 @@ room_id = ""
 ws_link = ""
 websocket = None
 
+server_flag = False
+
 async def listen_to_server(websocket, page):
+    global server_flag
     while True:
         try:
+            if server_flag:
+                local_ip = get_local_ip()
+                page.pubsub.send_all(
+                Message(
+                    user_name="System",
+                    text=f"ws://{local_ip}:6789",
+                    message_type="system_message",
+                )
+            )
             message = await websocket.recv()
             sender, _, content = message.partition(":")
             page.pubsub.send_all(
@@ -171,7 +183,9 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
 
     def on_server_checkbox_change(e: ControlEvent):
+        global server_flag
         if join_server.value:
+            server_flag = True
             local_ip = get_local_ip()
             generated_link = f"ws://{local_ip}:6789"
             join_pass_code.value = generated_link
