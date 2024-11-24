@@ -67,7 +67,7 @@ Ensure the following are installed before running P2Peek:
 ## **Folder Structure**  
 ```plaintext  
 P2Peek/  
-├── server.py              # Script to initialize the server  
+├── LICENSE                # Our MIT license for Open Source  
 ├── main.py                # Main application script  
 ├── requirements.txt       # List of Python dependencies  
 └── README.md              # Project documentation  
@@ -76,6 +76,7 @@ P2Peek/
 ---
 
 ## **Future Enhancements**  
+- **NGROK Intgration:** Using NGROK to create public links to enable global level communication
 - **End-to-End Encryption:** Implement SSL/TLS for secure data transmission.  
 - **Global Communication via WebSockets:** Enable worldwide communication.  
 - **File Sharing:** Add functionality for reliable file transfers.  
