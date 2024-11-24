@@ -1,11 +1,54 @@
-import flet as ft
-from flet import TextField, Checkbox, ElevatedButton, Text, Row, Column
-from flet_core.control_event import ControlEvent
-import socket
-import time
+import asyncio
 import threading
+import websockets
+import pyperclip
+import flet as ft
+from flet_core.control_event import ControlEvent
+import socket  # To get the local IP address
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Function to get the local IP address
+def get_local_ip():
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))  # Connecting to an external address
+        return s.getsockname()[0]
+
+# Server code
+connected_clients = set()
+
+async def broadcast(message, sender):
+    disconnected_clients = set()
+    for client in connected_clients:
+        if client != sender:
+            try:
+                await client.send(message)
+            except websockets.ConnectionClosed:
+                disconnected_clients.add(client)
+    connected_clients.difference_update(disconnected_clients)
+
+async def handle_client(websocket, path):
+    connected_clients.add(websocket)
+    print("A new client connected.")
+    try:
+        async for message in websocket:
+            sender, _, content = message.partition(":")
+            print(f"{sender}: {content}")
+            await broadcast(message, websocket)
+    except websockets.ConnectionClosed:
+        print("A client disconnected.")
+    finally:
+        connected_clients.remove(websocket)
+
+def start_server():
+    async def main():
+        local_ip = get_local_ip()  # Get the local IP address
+        port = 6789
+        print(f"Server running on ws://{local_ip}:{port}")
+        async with websockets.serve(handle_client, local_ip, port):
+            await asyncio.Future()  # Run forever
+
+    print("Starting WebSocket server...")
+    asyncio.run(main())
+
 
 class Message:
     def __init__(self, user_name: str, text: str, message_type: str):
@@ -13,21 +56,20 @@ class Message:
         self.text = text
         self.message_type = message_type
 
-
-class ChatMessage(Row):
+class ChatMessage(ft.Row):
     def __init__(self, message: Message):
         super().__init__()
         self.vertical_alignment = ft.CrossAxisAlignment.START
         self.controls = [
             ft.CircleAvatar(
-                content=Text(self.get_initials(message.user_name)),
+                content=ft.Text(self.get_initials(message.user_name)),
                 color=ft.colors.WHITE,
                 bgcolor=self.get_avatar_color(message.user_name),
             ),
-            Column(
+            ft.Column(
                 [
-                    Text(message.user_name, weight="bold"),
-                    Text(message.text, selectable=True),
+                    ft.Text(message.user_name, weight="bold"),
+                    ft.Text(message.text, selectable=True),
                 ],
                 tight=True,
                 spacing=5,
@@ -35,214 +77,201 @@ class ChatMessage(Row):
         ]
 
     def get_initials(self, user_name: str):
-        if user_name:
-            return user_name[:1].capitalize()
-        else:
-            return "Unknown"  # or any default value you prefer
+        return user_name[:1].capitalize() if user_name else "?"
 
     def get_avatar_color(self, user_name: str):
         colors_lookup = [
-            ft.colors.AMBER,
-            ft.colors.BLUE,
-            ft.colors.BROWN,
-            ft.colors.CYAN,
-            ft.colors.GREEN,
-            ft.colors.INDIGO,
-            ft.colors.LIME,
-            ft.colors.ORANGE,
-            ft.colors.PINK,
-            ft.colors.PURPLE,
-            ft.colors.RED,
-            ft.colors.TEAL,
+            ft.colors.AMBER, ft.colors.BLUE, ft.colors.BROWN, ft.colors.CYAN,
+            ft.colors.GREEN, ft.colors.INDIGO, ft.colors.LIME, ft.colors.ORANGE,
+            ft.colors.PINK, ft.colors.PURPLE, ft.colors.RED, ft.colors.TEAL,
             ft.colors.YELLOW,
         ]
         return colors_lookup[hash(user_name) % len(colors_lookup)]
 
-def main(page: ft.Page):
-    page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
-    page.title = "P2Peek"
-    page.theme_mode = ft.ThemeMode.LIGHT
+unm = ""
+room_id = ""
+ws_link = ""
+websocket = None
 
-    def join_chat_click(e: ControlEvent):
-        global server
-        if not all([username:=join_user_name.value, room_id:=join_room_id.value, (join_chk or (servip:=join_pass_code))]):
-            if not join_user_name.value:
-                join_user_name.error_text = "Name cannot be blank!"
-                join_user_name.update()
-            if not join_room_id.value:
-                join_room_id.error_text = "Room Id cannot be blank!"
-                join_room_id.update()
-            if (not join_pass_code.value) and (not join_chk.value) :
-                join_pass_code.error_text = "Passcode cannot be blank!"
-                join_pass_code.update()
-            
-        else:
-            servip = join_pass_code.value
-            enc2, rest2 = servip[::2], servip[1::2]
-            d2 = {j:i for i, j in enumerate("abcdefghijklmnopqrstuvwxyz")}
-            enc2_l = [d2[i] for i in enc2]
-            rest2_l = [d2[i] for i in rest2]
-            ip_l = ([(f"{i}{j}") for i, j in zip(enc2_l, rest2_l)])
-            servip = '.'.join([str((int(255-(float(i))))) for i in ip_l])
-            server.connect((servip, 12345))
-            #-----------------------------------------------------------------------
-            server.send(str.encode(username))
-            time.sleep(0.1)
-            server.send(str.encode(room_id))
-            rcv = threading.Thread(target=receive)
-            rcv.start()
-            page.session.set("user_name", join_user_name.value)
-            page.dialog.open = False
-            new_message.prefix = Text(f"{join_user_name.value}: ")
+server_flag = False
+
+async def listen_to_server(websocket, page):
+    global server_flag
+    if server_flag:
+                local_ip = get_local_ip()
+                page.pubsub.send_all(
+                Message(
+                    user_name="System",
+                    text=f"ws://{local_ip}:6789",
+                    message_type="ip_message",
+                )
+            )
+    while True:
+        try:
+            message = await websocket.recv()
+            sender, _, content = message.partition(":")
+            page.pubsub.send_all(
+                Message(user_name=sender, text=content, message_type="chat_message")
+            )
+        except websockets.ConnectionClosed:
             page.pubsub.send_all(
                 Message(
-                    user_name=join_user_name.value,
-                    text=f"{join_user_name.value} has joined the chat.",
-                    message_type="login_message",
+                    user_name="System",
+                    text="Disconnected from the server.",
+                    message_type="system_message",
                 )
             )
+            break
+
+async def send_to_server(websocket, message, page):
+    if websocket is None:
+        page.pubsub.send_all(
+            Message(
+                user_name="System",
+                text="WebSocket is not connected.",
+                message_type="system_message",
+            )
+        )
+        return
+    try:
+        await websocket.send(f"{unm}:{message}")
+        page.pubsub.send_all(
+            Message(
+                user_name=unm,
+                text=message,
+                message_type="chat_message",
+            )
+        )
+    except websockets.ConnectionClosed:
+        page.pubsub.send_all(
+            Message(
+                user_name="System",
+                text="Connection lost.",
+                message_type="system_message",
+            )
+        )
+
+async def chat_client(page):
+    global websocket
+    uri = ws_link
+    try:
+        async with websockets.connect(uri) as ws:
+            websocket = ws
+            tasks = [asyncio.create_task(listen_to_server(websocket, page))]
+            page.pubsub.subscribe(lambda msg: on_message(msg, page))
+            await asyncio.gather(*tasks)
+    except Exception as e:
+        page.pubsub.send_all(
+            Message(
+                user_name="System",
+                text=f"Connection failed: {e}",
+                message_type="system_message",
+            )
+        )
+copy_to_clipboard = None
+def on_message(message: Message, page):
+    if message.message_type == "chat_message":
+        m = ChatMessage(message)
+    elif message.message_type == "system_message":
+        m = ft.Text(message.text, italic=True, color=ft.colors.BLACK45, size=12, selectable=True)
+    elif message.message_type == "ip_message":
+        m = ft.Container(
+    content=ft.Text(
+                message.text,
+                italic=True,
+                color=ft.colors.BLACK45,
+                size=12,
+                selectable=True,  # Makes text selectable
+            ),
+            on_click=copy_to_clipboard,  # Click event handler
+            padding=5,  # Optional: Adds some padding for easier clicking
+            border_radius=5,  # Optional: Rounded corners
+            ink=True,  # Optional: Provides a ripple effect when clicked
+        )
+    chat.controls.append(m)
+    page.update()
+
+def main(page: ft.Page):
+    page.title = "WebSocket Chat"
+    page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
+    page.theme_mode = ft.ThemeMode.LIGHT
+    global copy_to_clipboard
+    def copy_to_clipboard(e: ControlEvent):
+        global server_flag
+        if server_flag:
+            local_ip = get_local_ip()
+            generated_link = f"ws://{local_ip}:6789"
+            try: page.set_clipboard(generated_link)
+            except: pass
+            try: pyperclip.copy(generated_link)
+            except: pass
+            page.snack_bar = ft.SnackBar(ft.Text("Link copied to clipboard!"))
+            page.snack_bar.open = True
             page.update()
-            
-    def receive():
-        global fin_msg, server
-        while True:
-            try:
-                message_recv = str(server.recv(1024).decode())
-                
-                print("Recieving ..!", message_recv)
-                if not message_recv.startswith("<"):
-                    if not message_recv:
-                        break
-                    Message(
-                    user_name=join_user_name.value,
-                    text=f"{message_recv}",
-                    message_type="login_message",
-                    )
-                    # print(f"Just Recieved {message_recv}")
-                else:
-                    message_proc = message_recv[1:].partition("> ")
-                    print(f"Recived '{message_proc[-1]}' from {message_proc[0]}")
-                    message_conv = Message(user_name=message_proc[0], 
-                                        text=message_proc[2],
-                                        message_type="chat_message")
-                    print("Sending the message:",message_conv.user_name, "From", 
-                          message_conv.text)
-                    on_message(message_conv)   
 
-            except: 
-                print("An error occured!") 
-                print(Exception)
-                server.close() 
-                break
-        page.update()
+    def on_server_checkbox_change(e: ControlEvent):
+        global server_flag
+        if join_server.value:
+            server_flag = True
+            local_ip = get_local_ip()
+            generated_link = f"ws://{local_ip}:6789"
+            join_pass_code.value = generated_link
+            pyperclip.copy(generated_link)
+            page.snack_bar = ft.SnackBar(ft.Text("Link copied to clipboard!"))
+            page.snack_bar.open = True
+            page.update()
 
+    def join_chat_click(e: ControlEvent):
+        global unm, room_id, ws_link
+        if join_user_name.value and join_room_id.value and join_pass_code.value:
+            unm = join_user_name.value
+            room_id = join_room_id.value
+            ws_link = join_pass_code.value
+
+            if join_server.value:
+                threading.Thread(target=start_server, daemon=True).start()
+
+            page.dialog.open = False
+            page.update()
+
+            def start_chat_client():
+                asyncio.run(chat_client(page))
+
+            threading.Thread(target=start_chat_client, daemon=True).start()
 
     def send_message_click(e):
-        global fin_msg, server
-        if new_message.value != "":
-            page.pubsub.send_all(
-                fin_msg := Message(
-                    page.session.get("user_name"),
-                    new_message.value,
-                    message_type="chat_message",
-                )
-            )
-            print("Sending :",new_message)
-            while True:
-                server.send((new_message.value).encode())
-                break
-            
+        message = new_message.value
+        if message:
+            asyncio.run(send_to_server(websocket, message, page))
             new_message.value = ""
             new_message.focus()
             page.update()
 
-    def on_message(message: Message):
-        if message.message_type == "chat_message":
-            m = ChatMessage(message)
-        elif message.message_type == "login_message":
-            m = Text(message.text, italic=True, color=ft.colors.BLACK45, size=12)
-        chat.controls.append(m)
-        page.update()
+    join_user_name = ft.TextField(label="Username", autofocus=True, on_submit=join_chat_click)
+    join_room_id = ft.TextField(label="Room ID", on_submit=join_chat_click)
+    join_pass_code = ft.TextField(label="WS Link", read_only=False, on_submit=join_chat_click)
+    join_server = ft.Checkbox(label="Run as Server", value=False, on_change=on_server_checkbox_change)
 
-    page.pubsub.subscribe(on_message)
-    
-    def design(e: ControlEvent):
-        if join_chk.value:
-            join_pass_code.value = None
-            join_pass_code.disabled = True
-        else:
-            join_pass_code.disabled = False
-        
-        page.update()
-    
-    # A dialog asking for a user display name
-    join_user_name = TextField(
-        label="Username",
-        autofocus=True,
-        on_submit=join_chat_click,
-    )
-    join_room_id = TextField(
-        label="Room Id",
-        password=True,
-        on_submit=join_chat_click,
-    )
-    join_pass_code = TextField(
-        label="Passcode",
-        on_submit=join_chat_click,
-    )
-    join_chk = Checkbox(
-        label="Server",
-        value=False,
-        on_change=design
-    )
     page.dialog = ft.AlertDialog(
         open=True,
         modal=True,
-        title=Text("Welcome!"),
-        content=Column([join_user_name, join_room_id, join_pass_code, join_chk], width=300, height=220, tight=True),
-        actions=[ElevatedButton(text="Join chat", on_click=join_chat_click)],
+        title=ft.Text("Join Chat"),
+        content=ft.Column([join_user_name, join_room_id, join_pass_code, join_server], width=300, height=220, tight=True),
+        actions=[ft.ElevatedButton(text="Join Chat", on_click=join_chat_click)],
         actions_alignment=ft.MainAxisAlignment.END,
     )
 
-    # Chat messages
-    chat = ft.ListView(
-        expand=True,
-        spacing=10,
-        auto_scroll=True,
-    )
-
-    # A new message entry form
-    new_message = TextField(
-        hint_text="Write a message...",
-        autofocus=True,
+    global chat
+    chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
+    new_message = ft.TextField(hint_text="Write a message...",autofocus=True,
         shift_enter=True,
         min_lines=1,
         max_lines=5,
-        filled=True,
-        expand=True,
-        on_submit=send_message_click,
-    )
-
-    # Add everything to the page
+        filled=True, expand=True, on_submit=send_message_click)
     page.add(
-        ft.Container(
-            content=chat,
-            border=ft.border.all(1, ft.colors.OUTLINE),
-            border_radius=5,
-            padding=10,
-            expand=True,
-        ),
-        Row(
-            [
-                new_message,
-                ft.IconButton(
-                    icon=ft.icons.SEND_ROUNDED,
-                    tooltip="Send message",
-                    on_click=send_message_click,
-                ),
-            ]
-        ),
+        ft.Container(content=chat, expand=True, border_radius=5,
+            padding=10, border=ft.border.all(1, ft.colors.OUTLINE)),
+        ft.Row([new_message, ft.IconButton(icon=ft.icons.SEND, on_click=send_message_click)]),
     )
 
-
-ft.app(target=main)
+ft.app(target=main, assets_dir="assets")

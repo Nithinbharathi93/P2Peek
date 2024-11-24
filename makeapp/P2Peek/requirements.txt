@@ -1,4 +1,0 @@
-flet==0.22.*
-tk
-pyngrok
-pyperclip
