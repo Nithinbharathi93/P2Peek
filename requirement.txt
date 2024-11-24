@@ -1,3 +1,5 @@
-tk>=0.1.0
-flet
+websockets==11
+flet==0.22.*
+tk
 pyngrok
+pyperclip
