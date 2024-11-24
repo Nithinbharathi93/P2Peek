@@ -97,17 +97,17 @@ server_flag = False
 
 async def listen_to_server(websocket, page):
     global server_flag
-    while True:
-        try:
-            if server_flag:
+    if server_flag:
                 local_ip = get_local_ip()
                 page.pubsub.send_all(
                 Message(
                     user_name="System",
                     text=f"ws://{local_ip}:6789",
-                    message_type="system_message",
+                    message_type="ip_message",
                 )
             )
+    while True:
+        try:
             message = await websocket.recv()
             sender, _, content = message.partition(":")
             page.pubsub.send_all(
@@ -168,12 +168,26 @@ async def chat_client(page):
                 message_type="system_message",
             )
         )
-
+copy_to_clipboard = None
 def on_message(message: Message, page):
     if message.message_type == "chat_message":
         m = ChatMessage(message)
     elif message.message_type == "system_message":
-        m = ft.Text(message.text, italic=True, color=ft.colors.BLACK45, size=12)
+        m = ft.Text(message.text, italic=True, color=ft.colors.BLACK45, size=12, selectable=True)
+    elif message.message_type == "ip_message":
+        m = ft.Container(
+    content=ft.Text(
+                message.text,
+                italic=True,
+                color=ft.colors.BLACK45,
+                size=12,
+                selectable=True,  # Makes text selectable
+            ),
+            on_click=copy_to_clipboard,  # Click event handler
+            padding=5,  # Optional: Adds some padding for easier clicking
+            border_radius=5,  # Optional: Rounded corners
+            ink=True,  # Optional: Provides a ripple effect when clicked
+        )
     chat.controls.append(m)
     page.update()
 
@@ -181,6 +195,19 @@ def main(page: ft.Page):
     page.title = "WebSocket Chat"
     page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
     page.theme_mode = ft.ThemeMode.LIGHT
+    global copy_to_clipboard
+    def copy_to_clipboard(e: ControlEvent):
+        global server_flag
+        if server_flag:
+            local_ip = get_local_ip()
+            generated_link = f"ws://{local_ip}:6789"
+            try: page.set_clipboard(generated_link)
+            except: pass
+            try: pyperclip.copy(generated_link)
+            except: pass
+            page.snack_bar = ft.SnackBar(ft.Text("Link copied to clipboard!"))
+            page.snack_bar.open = True
+            page.update()
 
     def on_server_checkbox_change(e: ControlEvent):
         global server_flag
